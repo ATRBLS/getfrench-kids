@@ -1,0 +1,65 @@
+/* ── Animations ── */
+@keyframes lndBob {
+  0%,100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-12px) rotate(3deg); }
+}
+.lnd-bob { animation: lndBob 4s ease-in-out infinite; }
+
+@keyframes lndPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.45); }
+  50% { box-shadow: 0 0 0 22px rgba(239,68,68,0); }
+}
+.lnd-pulse { animation: lndPulse 2.4s ease-out infinite; }
+
+@keyframes lndStrip {
+  from { transform: translateX(0); }
+  to { transform: translateX(-33.33%); }
+}
+.lnd-strip-track { animation: lndStrip 30s linear infinite; }
+
+/* ── Blobs ── */
+.lnd-blob {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.9;
+}
+
+/* ── Hero grid ── */
+.lnd-hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+}
+@media (max-width: 768px) {
+  .lnd-hero-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Nav links ── */
+.lnd-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+@media (max-width: 768px) {
+  .lnd-nav-links { display: none; }
+}
+
+/* ── Parents grid ── */
+.lnd-parents-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+}
+@media (max-width: 768px) {
+  .lnd-parents-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Card hover ── */
+.lnd-card-hover {
+  transition: transform 0.2s;
+}
+.lnd-card-hover:hover {
+  transform: translateY(-4px);
+}
