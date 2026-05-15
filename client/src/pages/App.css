@@ -100,6 +100,98 @@
   justify-content: center;
 }
 
+/* ── Buddy circle ── */
+.buddy-circle {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  border: 3px solid #1e1b4b;
+  box-shadow: 4px 4px 0 #1e1b4b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.buddy-circle--sm {
+  width: 130px;
+  height: 130px;
+  box-shadow: 3px 3px 0 #1e1b4b;
+}
+
+/* ── Buddy selector ── */
+.buddy-selector {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.buddy-selector-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(30,27,75,0.45);
+  text-align: center;
+}
+.buddy-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 4px 2px;
+  -webkit-overflow-scrolling: touch;
+  justify-content: center;
+}
+.buddy-row::-webkit-scrollbar { display: none; }
+.buddy-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 16px;
+  border: 2px solid rgba(30,27,75,0.15);
+  background: white;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: border-color 0.15s, transform 0.1s, box-shadow 0.1s;
+  min-width: 72px;
+  flex-shrink: 0;
+}
+.buddy-card:active { transform: scale(0.95); }
+.buddy-card--active {
+  border-color: #1e1b4b;
+  box-shadow: 3px 3px 0 #1e1b4b;
+  background: #fff7e6;
+}
+.buddy-card-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  border: 2px solid rgba(30,27,75,0.12);
+  transition: background 0.15s;
+}
+.buddy-card--active .buddy-card-avatar {
+  border-color: #1e1b4b;
+}
+.buddy-card-name {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e1b4b;
+}
+.buddy-card-trait {
+  font-size: 10px;
+  color: rgba(30,27,75,0.5);
+  text-align: center;
+  line-height: 1.2;
+}
+
 .greeting-text {
   font-family: 'Fredoka', sans-serif;
   font-size: 20px;
