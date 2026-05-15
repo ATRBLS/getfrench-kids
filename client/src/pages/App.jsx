@@ -54,6 +54,8 @@ export default function AppPage() {
   const sessionStartRef = useRef(null);
   const childProfileRef = useRef(null);
   const aiTextRef = useRef('');
+  const appModeRef = useRef('home');
+  const selectedStoryRef = useRef(null);
 
   const UI = lang === 'fr' ? {
     talkToRocky: 'Parle avec Rocky', freeConvo: 'Conversation libre',
@@ -110,7 +112,7 @@ export default function AppPage() {
     setVoiceState(STATE.THINKING);
     setSuggestions([]);
     aiTextRef.current = '';
-    const kidsParams = { kidsMode: true, childName: profile.child_name, childAge: profile.child_age, schoolLevel: profile.school_level, storyMode: appMode === 'story', storyId: selectedStory?.prompt || null };
+    const kidsParams = { kidsMode: true, childName: profile.child_name, childAge: profile.child_age, schoolLevel: profile.school_level, storyMode: appModeRef.current === 'story', storyId: selectedStoryRef.current?.prompt || null };
     try {
       let full = '';
       let sentenceBuf = '';
@@ -142,6 +144,8 @@ export default function AppPage() {
     setMessages([]); messagesRef.current = [];
     setTranscript(''); aiTextRef.current = '';
     setSuggestions([]); setError(''); setElapsed(0);
+    appModeRef.current = mode;
+    selectedStoryRef.current = story;
     setAppMode(mode);
     if (story) setSelectedStory(story);
     try { const { session_id } = await api.startSession(); sessionIdRef.current = session_id; setSessionId(session_id); } catch {}
