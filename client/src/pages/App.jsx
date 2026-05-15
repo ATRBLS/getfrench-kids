@@ -176,6 +176,9 @@ export default function AppPage() {
 
   const startSession = useCallback(async (mode, story = null) => {
     if (!childProfileRef.current) return;
+    // Must unlock audio synchronously during the user gesture — before any await
+    speech.createAudioSession();
+    unlockAudio();
     speech.cancel();
     setMessages([]); messagesRef.current = [];
     setTranscript(''); aiTextRef.current = '';
@@ -184,11 +187,10 @@ export default function AppPage() {
     selectedStoryRef.current = story;
     setAppMode(mode);
     if (story) setSelectedStory(story);
-    try { const { session_id } = await api.startSession(); sessionIdRef.current = session_id; setSessionId(session_id); } catch {}
     const now = Date.now();
     sessionStartRef.current = now; setSessionStart(now);
-    speech.createAudioSession();
-    await requestMicPermission(); unlockAudio();
+    try { const { session_id } = await api.startSession(); sessionIdRef.current = session_id; setSessionId(session_id); } catch {}
+    await requestMicPermission();
     handleUserInput('Bonjour!');
   }, [speech, handleUserInput]);
 
