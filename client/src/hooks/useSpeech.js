@@ -129,13 +129,14 @@ export function useSpeechSynthesis() {
     const token = getToken();
     const base  = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
+    const buddyId = localStorage.getItem('getfrench-kids_buddy') || 'rocky';
     fetch(`${base}/api/tts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, buddyId }),
     })
       .then(res => {
         if (!res.ok) throw new Error(`TTS ${res.status}`);
