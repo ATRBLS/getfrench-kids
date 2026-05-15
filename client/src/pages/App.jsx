@@ -9,6 +9,13 @@ import './App.css';
 
 const STATE = { IDLE: 'idle', LISTENING: 'listening', THINKING: 'thinking', SPEAKING: 'speaking' };
 
+const BUDDIES = [
+  { id: 'rocky',   name: 'Rocky',   emoji: null,  color: '#38bdf8', bg: '#fbbf24', trait: 'Loves Timbits 🍩' },
+  { id: 'castor',  name: 'Castor',  emoji: '🦫',  color: '#f59e0b', bg: '#fbbf24', trait: 'Tells dad jokes 😄' },
+  { id: 'orignal', name: 'Orignal', emoji: '🫎',  color: '#34d399', bg: '#34d399', trait: 'Story master 📖' },
+  { id: 'outarde', name: 'Outarde', emoji: '🪿',  color: '#ef4444', bg: '#ef4444', trait: 'Total goofball 😂' },
+];
+
 const STORIES = [
   { id: 'timbits', emoji: '🍩', titleEn: 'Timbit Hunt', titleFr: 'La chasse aux Timbits', descEn: 'Rocky lost his Timbits!', duration: '~10 min', ageMin: 5, color: '#fbbf24', prompt: 'timbits_hunt' },
   { id: 'hockey', emoji: '🏒', titleEn: 'Hockey Final', titleFr: 'La grande finale', descEn: "You're playing for Les Canadiens!", duration: '~10 min', ageMin: 6, color: '#38bdf8', prompt: 'hockey_final' },
@@ -20,16 +27,29 @@ const STORIES = [
   { id: 'dinosaurs', emoji: '🦕', titleEn: 'ROM Dinosaurs', titleFr: 'Les dinosaures du ROM', descEn: 'Museum dinosaurs came alive!', duration: '~15 min', ageMin: 6, color: '#84cc16', prompt: 'rom_dinosaurs' },
 ];
 
-function getGreeting(name) {
+function getGreeting(name, buddyName) {
   const h = new Date().getHours();
   if (h >= 6 && h < 12) return `Good morning ${name}! 🌞`;
-  if (h >= 12 && h < 18) return `Hey ${name}! 🦝`;
+  if (h >= 12 && h < 18) return `Hey ${name}! 👋`;
   return `Good evening ${name}! 🌙`;
+}
+
+function BuddyAvatar({ buddy, size = 160 }) {
+  if (buddy.id === 'rocky') return <Rocky size={size} />;
+  return (
+    <div style={{ width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.6, lineHeight: 1, userSelect: 'none' }}>
+      {buddy.emoji}
+    </div>
+  );
 }
 
 export default function AppPage() {
   const navigate = useNavigate();
   const [childProfile, setChildProfile] = useState(null);
+  const [selectedBuddy, setSelectedBuddy] = useState(() => {
+    const saved = localStorage.getItem('getfrench-kids_buddy');
+    return BUDDIES.find(b => b.id === saved) || BUDDIES[0];
+  });
   const [appMode, setAppMode] = useState('home');
   const [selectedStory, setSelectedStory] = useState(null);
   const [showStorySheet, setShowStorySheet] = useState(false);
@@ -56,21 +76,24 @@ export default function AppPage() {
   const aiTextRef = useRef('');
   const appModeRef = useRef('home');
   const selectedStoryRef = useRef(null);
+  const selectedBuddyRef = useRef(selectedBuddy);
 
   const UI = lang === 'fr' ? {
-    talkToRocky: 'Parle avec Rocky', freeConvo: 'Conversation libre',
+    talkToRocky: `Parler avec ${selectedBuddy.name}`, freeConvo: 'Conversation libre',
     storyTime: 'Une histoire', adventure: 'Aventure interactive',
-    tapToSpeak: 'Appuie pour parler avec Rocky!',
+    tapToSpeak: `Appuie pour parler avec ${selectedBuddy.name}!`,
     chooseAdventure: 'Choisis ton aventure! 📖', again: 'Encore! 🦝',
     thatsAll: "C'est tout pour aujourd'hui", newWords: 'Nouveaux mots',
     spokenMin: 'parlé!', mapleLeaves: 'feuilles!', parentSettings: 'Paramètres parents',
+    chooseBuddy: 'Ton ami français',
   } : {
-    talkToRocky: 'Talk to Rocky', freeConvo: 'Free conversation',
+    talkToRocky: `Talk to ${selectedBuddy.name}`, freeConvo: 'Free conversation',
     storyTime: 'Story time', adventure: 'Interactive adventure',
-    tapToSpeak: 'Tap to talk with Rocky!',
-    chooseAdventure: 'Choose your adventure! 📖', again: 'Again! 🦝',
+    tapToSpeak: `Tap to talk with ${selectedBuddy.name}!`,
+    chooseAdventure: 'Choose your adventure! 📖', again: 'Again! 🎉',
     thatsAll: "That's enough for today", newWords: 'New words',
     spokenMin: 'spoken!', mapleLeaves: 'maple leaves!', parentSettings: 'Parent Settings',
+    chooseBuddy: 'Your French buddy',
   };
 
   const speech = useSpeechSynthesis();
@@ -100,6 +123,12 @@ export default function AppPage() {
     return () => clearInterval(t);
   }, [sessionStart]);
 
+  const handleBuddySelect = useCallback((buddy) => {
+    setSelectedBuddy(buddy);
+    selectedBuddyRef.current = buddy;
+    localStorage.setItem('getfrench-kids_buddy', buddy.id);
+  }, []);
+
   const formatTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
   const handleUserInput = useCallback(async (text) => {
@@ -112,7 +141,15 @@ export default function AppPage() {
     setVoiceState(STATE.THINKING);
     setSuggestions([]);
     aiTextRef.current = '';
-    const kidsParams = { kidsMode: true, childName: profile.child_name, childAge: profile.child_age, schoolLevel: profile.school_level, storyMode: appModeRef.current === 'story', storyId: selectedStoryRef.current?.prompt || null };
+    const kidsParams = {
+      kidsMode: true,
+      childName: profile.child_name,
+      childAge: profile.child_age,
+      schoolLevel: profile.school_level,
+      storyMode: appModeRef.current === 'story',
+      storyId: selectedStoryRef.current?.prompt || null,
+      buddyId: selectedBuddyRef.current?.id || 'rocky',
+    };
     try {
       let full = '';
       let sentenceBuf = '';
@@ -131,12 +168,11 @@ export default function AppPage() {
         setVoiceState(STATE.IDLE);
         if (profile.child_age <= 9) {
           api.getSuggestions({ cefrLevel: 'A1', scenario: 'kids', lastAiMessage: aiTextRef.current })
-            .then(({ suggestions: s }) => setSuggestions(s || []))
-            .catch(() => {});
+            .then(({ suggestions: s }) => setSuggestions(s || [])).catch(() => {});
         }
       });
     } catch { setError('Something went wrong. Try again!'); setVoiceState(STATE.IDLE); }
-  }, [appMode, selectedStory, speech]);
+  }, [speech]);
 
   const startSession = useCallback(async (mode, story = null) => {
     if (!childProfileRef.current) return;
@@ -179,7 +215,7 @@ export default function AppPage() {
       ]);
       setRecap({ ...summary, sessionMinutes, mapleEarned, timbitEarned, storyMode: appMode === 'story', storyTitle: selectedStory?.titleEn });
     } catch {
-      setRecap({ sessionMinutes, mapleEarned, timbitEarned, storyMode: appMode === 'story', encouragement: "Super travail aujourd'hui! 🦝", words_to_remember: [] });
+      setRecap({ sessionMinutes, mapleEarned, timbitEarned, storyMode: appMode === 'story', encouragement: "Super travail aujourd'hui! 🎉", words_to_remember: [] });
     } finally { setRecapLoading(false); }
   }, [elapsed, appMode, selectedStory, stt, speech]);
 
@@ -214,29 +250,58 @@ export default function AppPage() {
 
   return (
     <div className="app-page">
+      {/* Top bar */}
       <div className="app-topbar">
-        <div className="topbar-left"><Rocky size={32} /></div>
+        <div className="topbar-left"><Rocky size={28} /></div>
         <div className="topbar-title">{profile.child_name}'s French Time! 🍁</div>
         <div className="topbar-right">
           <button className="settings-btn" onClick={() => setSettingsOpen(true)}>⚙️</button>
         </div>
       </div>
 
+      {/* Reward strip */}
       <div className="reward-strip">
         <span className="reward-pill">🍁 {mapleCount}</span>
         <span className="reward-pill">🍩 {timbitCount}</span>
         <span className="reward-pill">🔥 {profile.streak_count || 0}</span>
       </div>
 
+      {/* Home */}
       {!inSession ? (
         <div className="home-content">
+          {/* Big buddy avatar */}
           <div className="rocky-center">
-            <div className="rocky-bg-circle">
-              <div className="rocky-bob"><Rocky size={160} /></div>
+            <div className="rocky-bob">
+              <div className="buddy-circle" style={{ background: selectedBuddy.bg, borderColor: '#1e1b4b' }}>
+                <BuddyAvatar buddy={selectedBuddy} size={150} />
+              </div>
             </div>
-            <div className="greeting-text">{getGreeting(profile.child_name)}</div>
-            <div className="rocky-bubble">Qu'est-ce qu'on fait aujourd'hui?</div>
+            <div className="greeting-text">{getGreeting(profile.child_name, selectedBuddy.name)}</div>
+            <div className="rocky-bubble">Salut {profile.child_name}! On parle français? 😄</div>
           </div>
+
+          {/* Buddy selector */}
+          <div className="buddy-selector">
+            <div className="buddy-selector-label">{UI.chooseBuddy}</div>
+            <div className="buddy-row">
+              {BUDDIES.map(b => (
+                <button
+                  key={b.id}
+                  className={`buddy-card${selectedBuddy.id === b.id ? ' buddy-card--active' : ''}`}
+                  style={{ '--buddy-color': b.color }}
+                  onClick={() => handleBuddySelect(b)}
+                >
+                  <div className="buddy-card-avatar" style={{ background: b.id === selectedBuddy.id ? b.color : '#f3f4f6' }}>
+                    {b.id === 'rocky' ? <Rocky size={36} /> : <span style={{ fontSize: 24 }}>{b.emoji}</span>}
+                  </div>
+                  <span className="buddy-card-name">{b.name}</span>
+                  <span className="buddy-card-trait">{b.trait}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Mode buttons */}
           <div className="mode-buttons">
             <button className="mode-btn mode-btn--convo" onClick={() => startSession('conversation')}>
               <span className="mode-btn-icon">💬</span>
@@ -250,15 +315,19 @@ export default function AppPage() {
               <span className="mode-btn-badge">NEW ✨</span>
             </button>
           </div>
-          <p className="app-bottom-label">15 min · Rocky only speaks French 🇫🇷</p>
+
+          <p className="app-bottom-label">15 min · {selectedBuddy.name} only speaks French 🇫🇷</p>
         </div>
       ) : (
+        /* Session */
         <div className="session-content">
           <div className="rocky-session">
             <div className={voiceState === STATE.SPEAKING ? 'rocky-speaking' : 'rocky-bob'}>
-              <Rocky size={140} />
+              <div className="buddy-circle buddy-circle--sm" style={{ background: selectedBuddy.bg }}>
+                <BuddyAvatar buddy={selectedBuddy} size={100} />
+              </div>
             </div>
-            <span className="mode-badge">{appMode === 'story' ? `📖 ${selectedStory?.titleEn}` : `💬 ${UI.freeConvo}`}</span>
+            <span className="mode-badge">{appMode === 'story' ? `📖 ${selectedStory?.titleEn}` : `💬 ${selectedBuddy.name}`}</span>
           </div>
           <div className="session-spacer" />
           {voiceState === STATE.THINKING && <div className="thinking-dots"><span/><span/><span/></div>}
@@ -273,7 +342,7 @@ export default function AppPage() {
             <div className="mic-rings">
               <div className="ring ring-1"/><div className="ring ring-2"/><div className="ring ring-3"/>
             </div>
-            <div className="mic-inner">
+            <div className="mic-inner" style={{ background: selectedBuddy.color }}>
               {voiceState === STATE.THINKING && <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path className="spinner-path" d="M12 2a10 10 0 0 1 10 10" stroke="white" strokeWidth="2.5" strokeLinecap="round"/></svg>}
               {voiceState === STATE.SPEAKING && <div className="wave-bars"><div className="bar"/><div className="bar"/><div className="bar"/><div className="bar"/><div className="bar"/></div>}
               {(voiceState === STATE.LISTENING || voiceState === STATE.IDLE) && <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="9" y="2" width="6" height="13" rx="3" fill="white"/><path d="M5 11a7 7 0 0 0 14 0" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="12" y1="18" x2="12" y2="22" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>}
@@ -282,8 +351,8 @@ export default function AppPage() {
           <div className="state-label">
             {voiceState === STATE.IDLE && UI.tapToSpeak}
             {voiceState === STATE.LISTENING && 'Listening...'}
-            {voiceState === STATE.THINKING && 'Rocky is thinking...'}
-            {voiceState === STATE.SPEAKING && 'Rocky is speaking...'}
+            {voiceState === STATE.THINKING && `${selectedBuddy.name} is thinking...`}
+            {voiceState === STATE.SPEAKING && `${selectedBuddy.name} is speaking...`}
           </div>
           {transcript && voiceState !== STATE.LISTENING && <div className="transcript-bubble">"{transcript}"</div>}
           {error && <div className="app-error">{error}</div>}
@@ -300,6 +369,7 @@ export default function AppPage() {
         </div>
       )}
 
+      {/* Story sheet */}
       {showStorySheet && (
         <>
           <div className="story-overlay" onClick={() => setShowStorySheet(false)} />
@@ -312,7 +382,8 @@ export default function AppPage() {
               {STORIES.map(s => {
                 const locked = profile.child_age < s.ageMin;
                 return (
-                  <button key={s.id} className={`story-card${locked ? ' story-card--locked' : ''}`} style={{ background: locked ? '#f3f4f6' : s.color + '33' }}
+                  <button key={s.id} className={`story-card${locked ? ' story-card--locked' : ''}`}
+                    style={{ background: locked ? '#f3f4f6' : s.color + '33' }}
                     onClick={() => { if (locked) return; setShowStorySheet(false); startSession('story', s); }} disabled={locked}>
                     <span className="story-emoji">{s.emoji}</span>
                     <span className="story-title-en">{s.titleEn}</span>
@@ -328,6 +399,7 @@ export default function AppPage() {
         </>
       )}
 
+      {/* Settings */}
       <div className={`sp-overlay${settingsOpen ? ' sp-overlay--on' : ''}`} onClick={() => setSettingsOpen(false)}>
         <div className={`sp-drawer${settingsOpen ? ' sp-drawer--open' : ''}`} onClick={e => e.stopPropagation()}>
           <div className="sp-header">
