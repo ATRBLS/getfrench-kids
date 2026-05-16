@@ -441,28 +441,75 @@ const BUDDY_PERSONALITIES = {
   },
 };
 
-function buildKidsPrompt(childName, childAge, schoolLevel, storyMode, storyId, buddyId) {
+// ── Canadian French Immersion curriculum-aligned vocabulary ──────────────
+const IMMERSION_CURRICULUM = {
+  jk_sk: {
+    label: 'Maternelle (JK/SK)',
+    grammar: 'Present tense ONLY. Max 4 words per sentence. "C\'est un/une", "J\'aime", "Je veux", "Il y a". Yes/no questions only.',
+    vocab: [
+      'Couleurs: rouge, bleu, vert, jaune, orange, violet, rose, blanc, noir',
+      'Chiffres: un à dix',
+      'Corps: tête, nez, bouche, yeux, oreilles, mains, pieds',
+      'Famille: maman, papa, frère, sœur, grand-mère, grand-père',
+      'Animaux: chien, chat, oiseau, poisson, lapin, ours',
+      'Politesse: bonjour, au revoir, merci, s\'il vous plaît, oui, non',
+      'Classe: livre, crayon, chaise, table, porte, fenêtre',
+    ],
+    focus: 'Use ONLY the vocabulary above. Stick to very concrete, visible objects. Make it feel like a game.',
+  },
+  grade_1_3: {
+    label: 'Grades 1-3 (Early Immersion)',
+    grammar: 'Present tense + "j\'ai / je suis / il y a". Futur proche: "je vais + infinitif". Simple negation: "Je ne... pas". Questions with "Est-ce que..." and "Qu\'est-ce que c\'est?". Max 7 words per sentence.',
+    vocab: [
+      'École: sac à dos, règle, gomme, cahier, professeur, récréation, gymnase',
+      'Nourriture: pain, fromage, pomme, carotte, lait, jus, poutine, biscuit',
+      'Météo: soleil, pluie, neige, vent, nuage, froid, chaud',
+      'Jours et mois: lundi à vendredi, janvier à décembre',
+      'Vêtements: manteau, tuque, bottes, mitaines, chandail, pantalon',
+      'Sports: hockey, natation, soccer, ski, patinage',
+      'Maison: cuisine, chambre, salle de bain, salon, jardin',
+      'Ville: épicerie, parc, bibliothèque, piscine, autobus',
+    ],
+    focus: 'Naturally introduce these words in conversation. If the child uses one correctly, celebrate loudly. Gently model the right form if they get it wrong.',
+  },
+  grade_4_6: {
+    label: 'Grades 4-6 (Mid Immersion)',
+    grammar: 'Passé composé (j\'ai mangé, je suis allé). Imparfait for description (c\'était, il faisait). Questions: "Qu\'est-ce que tu as fait?", "Pourquoi?", "Comment?". Adjective agreement (beau/belle, grand/grande). Futur simple.',
+    vocab: [
+      'Environnement: forêt, rivière, montagne, pollution, recycler, énergie, planète',
+      'Communauté: bibliothèque, hôpital, pompier, policier, bénévole, quartier',
+      'Sciences: expérience, observer, plante, croissance, gravité, eau, air',
+      'Canada/Québec: provinces, capitales, fête nationale, drapeau, hockey, sirop d\'érable',
+      'Émotions: fier(e), inquiet(e), soulagé(e), enthousiaste, déçu(e)',
+      'Temps libre: activités parascolaires, voyage, lecture, dessin, musique',
+      'Alimentation: recette, ingrédients, cuisiner, goûter, saveur, épice',
+    ],
+    focus: 'Ask "Qu\'est-ce que tu as fait...?" questions. Encourage past tense responses. Use these topic areas to guide conversation naturally.',
+  },
+  grade_7_plus: {
+    label: 'Grades 7+ (Late Immersion)',
+    grammar: 'All tenses. Conditionnel (je voudrais, on pourrait). Subjonctif basics (il faut que, je veux que). Formal/informal registers. Discourse markers: cependant, par contre, en fait, d\'ailleurs, pourtant.',
+    vocab: [
+      'Histoire: Nouvelle-France, Confédération, droits, révolution tranquille, immigration',
+      'Société: environnement, égalité, justice, médias, technologie, réseaux sociaux',
+      'Littérature: personnage, thème, narrateur, métaphore, symbole',
+      'Expressions québécoises: c\'est le boutte, avoir l\'air, en tout cas, t\'sais, pantoute',
+      'Carrières: métier, compétence, entrevue, bénévolat, stage',
+      'Opinions: à mon avis, je pense que, il me semble que, selon moi, je suis convaincu(e) que',
+    ],
+    focus: 'Challenge with complex questions. Introduce Quebec expressions naturally. Expect and celebrate full sentences. Gently push for nuance and opinion.',
+  },
+};
+
+function buildKidsPrompt(childName, childAge, schoolLevel, storyMode, storyId, buddyId, weeklyTheme) {
   const buddy = BUDDY_PERSONALITIES[buddyId] || BUDDY_PERSONALITIES.rocky;
   const ageGroup = childAge <= 7 ? 'young' : childAge <= 11 ? 'middle' : 'older';
+  const curriculum = IMMERSION_CURRICULUM[schoolLevel] || IMMERSION_CURRICULUM.grade_1_3;
 
   const ageRules = {
-    young: `AGE GROUP: 5-7 years.
-Maximum 4 words per sentence.
-Present tense ONLY.
-Only 200 most common French words.
-Very simple yes/no questions.
-LOTS of emojis.
-Example: "Wow! C'est un chat! 🐱 Tu aimes les chats?"`,
-    middle: `AGE GROUP: 8-11 years.
-Maximum 8 words per sentence.
-Present + passé composé.
-School vocabulary, animals, sports, food.
-Example: "Super! Qu'est-ce que tu as mangé aujourd'hui?"`,
-    older: `AGE GROUP: 12-14 years.
-Natural conversation pace.
-All tenses welcome.
-School, friends, sports, music topics.
-Light Quebec expressions welcome.`,
+    young: `AGE GROUP: 5-7 years. ${curriculum.grammar}`,
+    middle: `AGE GROUP: 8-11 years. ${curriculum.grammar}`,
+    older: `AGE GROUP: 12-14 years. ${curriculum.grammar}`,
   };
 
   if (storyMode) {
@@ -626,34 +673,51 @@ RÈGLES ABSOLUES:
 IMPORTANT: Tu t'appelles ${buddy.name}. Tu es un(e) ${buddy.animal}. N'utilise JAMAIS un autre nom pour toi-même.`;
   }
 
+  const weeklyThemeBlock = weeklyTheme
+    ? `\n════ THÈME DE LA SEMAINE (PRIORITÉ ABSOLUE) ════
+Le parent a indiqué que ${childName} travaille sur ce thème à l'école cette semaine: "${weeklyTheme}"
+CONSIGNE: Intègre ce thème dans CHAQUE échange. Reviens-y naturellement si la conversation s'éloigne.
+Exemple — si le thème est "les animaux": demande les animaux favoris, leur couleur, où ils habitent, ce qu'ils mangent.
+Utilise ce thème pour pratiquer le vocabulaire du programme scolaire.`
+    : '';
+
   return `${buddy.intro}
 You ONLY speak French. Always. No exceptions.
-You are talking with ${childName}, who is ${childAge} years old.
+You are talking with ${childName} (${childAge} years old, ${curriculum.label}).
+
+════ PROGRAMME D'IMMERSION — NIVEAU ${curriculum.label.toUpperCase()} ════
+GRAMMAIRE À UTILISER:
+${curriculum.grammar}
+
+VOCABULAIRE PRIORITAIRE (utilise ces mots activement dans la conversation):
+${curriculum.vocab.map(v => `• ${v}`).join('\n')}
+
+${curriculum.focus}
+${weeklyThemeBlock}
 
 ${ageRules[ageGroup]}
 
 ${buddy.traits}
 
-LANGUAGE RULES:
-- ALWAYS respond in French
-- If ${childName} speaks English: Accept warmly, model French, ask next question.
-  Example: Child: "I like dogs"
-  ${buddy.name}: "Tu aimes les chiens! 🐶 Moi aussi! Tu as un chien?"
-- NEVER say "Wrong" or "No"
-- ALWAYS find something to celebrate
+RÈGLES DE LANGUE:
+- TOUJOURS répondre en français
+- Si ${childName} parle anglais: Accepter chaleureusement, modeler le français, poser la prochaine question.
+  Exemple: Enfant: "I like dogs" → ${buddy.name}: "Tu aimes les chiens! 🐶 Moi aussi! Tu as un chien?"
+- Ne JAMAIS dire "Faux" ou "Non"
+- TOUJOURS trouver quelque chose à célébrer
 
-OPENING: ${buddy.openingFn(childName, childAge)}`;
+OUVERTURE: ${buddy.openingFn(childName, childAge)}`;
 }
 
 router.post('/message', requireAuth, async (req, res) => {
   try {
-    const { messages, session_id, kidsMode, childName, childAge, schoolLevel, storyMode, storyId, buddyId, corrMode, levelOverride, crosstalk, helpMode, scenario, customScenario } = req.body;
+    const { messages, session_id, kidsMode, childName, childAge, schoolLevel, storyMode, storyId, buddyId, weeklyTheme, corrMode, levelOverride, crosstalk, helpMode, scenario, customScenario } = req.body;
 
     let systemPrompt;
     let maxTokens = 150;
 
     if (kidsMode) {
-      systemPrompt = buildKidsPrompt(childName, childAge, schoolLevel, !!storyMode, storyId, buddyId || 'rocky');
+      systemPrompt = buildKidsPrompt(childName, childAge, schoolLevel, !!storyMode, storyId, buddyId || 'rocky', weeklyTheme || '');
       maxTokens = 200;
     } else {
       const { data: user } = await supabase
