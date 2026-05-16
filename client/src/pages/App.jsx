@@ -50,6 +50,7 @@ export default function AppPage() {
     const saved = localStorage.getItem('getfrench-kids_buddy');
     return BUDDIES.find(b => b.id === saved) || BUDDIES[0];
   });
+  const [weeklyTheme, setWeeklyTheme] = useState(() => localStorage.getItem('getfrench-kids_theme') || '');
   const [appMode, setAppMode] = useState('home');
   const [selectedStory, setSelectedStory] = useState(null);
   const [showStorySheet, setShowStorySheet] = useState(false);
@@ -149,6 +150,7 @@ export default function AppPage() {
       storyMode: appModeRef.current === 'story',
       storyId: selectedStoryRef.current?.prompt || null,
       buddyId: selectedBuddyRef.current?.id || 'rocky',
+      weeklyTheme: localStorage.getItem('getfrench-kids_theme') || '',
     };
     try {
       let full = '';
@@ -318,6 +320,12 @@ export default function AppPage() {
             </button>
           </div>
 
+          {weeklyTheme && (
+            <div className="theme-badge">
+              <span>🍁</span>
+              <span>Cette semaine : <strong>{weeklyTheme}</strong></span>
+            </div>
+          )}
           <p className="app-bottom-label">15 min · {selectedBuddy.name} only speaks French 🇫🇷</p>
         </div>
       ) : (
@@ -423,6 +431,29 @@ export default function AppPage() {
                   <option value="grade_7_plus">Grade 7+</option>
                 </select>
               </div>
+            </div>
+            <div className="sp-section">
+              <div className="sp-label">🍁 Theme of the Week</div>
+              <p style={{ fontSize: 12, color: 'rgba(30,27,75,0.55)', marginBottom: 10, lineHeight: 1.5 }}>
+                What's your child learning at school this week? {selectedBuddy.name} will practice this theme every session.
+              </p>
+              <input
+                type="text"
+                placeholder="e.g. les animaux, la famille, les couleurs..."
+                value={weeklyTheme}
+                onChange={e => {
+                  setWeeklyTheme(e.target.value);
+                  localStorage.setItem('getfrench-kids_theme', e.target.value);
+                }}
+                style={{ fontSize: 14 }}
+              />
+              {weeklyTheme && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '6px 12px', background: 'rgba(52,211,153,0.12)', borderRadius: 10 }}>
+                  <span style={{ fontSize: 14 }}>✅</span>
+                  <span style={{ fontSize: 13, color: '#1e1b4b', fontWeight: 600 }}>Active: "{weeklyTheme}"</span>
+                  <button onClick={() => { setWeeklyTheme(''); localStorage.removeItem('getfrench-kids_theme'); }} style={{ marginLeft: 'auto', fontSize: 11, color: 'rgba(30,27,75,0.45)', background: 'none', border: 'none', cursor: 'pointer' }}>Clear</button>
+                </div>
+              )}
             </div>
             <div className="sp-section">
               <div className="sp-label">App Language</div>
