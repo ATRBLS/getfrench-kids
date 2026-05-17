@@ -179,9 +179,8 @@ export default function AppPage() {
 
   const startSession = useCallback(async (mode, story = null) => {
     if (!childProfileRef.current) return;
-    // Must unlock audio synchronously during the user gesture — before any await
+    // Create AudioContext now (during gesture) — real unlock happens at handleTapToStart tap
     speech.createAudioSession();
-    unlockAudio();
     speech.cancel();
     setMessages([]); messagesRef.current = [];
     setTranscript(''); aiTextRef.current = '';
@@ -198,10 +197,12 @@ export default function AppPage() {
   }, [speech, handleUserInput]);
 
   const handleTapToStart = useCallback(() => {
-    // This tap IS the user gesture iOS needs — unlock audio NOW, then start Rocky
-    speech.createAudioSession();
-    unlockAudio();
+    // This tap IS the iOS user gesture. Force-unlock audio synchronously FIRST.
+    speech.forceAudioUnlock(); // resumes or creates AudioContext + plays 200ms buffer
+    unlockAudio();             // also unlock Web Speech synthesis
     setSessionWaiting(false);
+    // Pre-request mic so the permission dialog never interrupts audio later
+    requestMicPermission();
     handleUserInput('Bonjour!');
   }, [speech, handleUserInput]);
 
@@ -209,7 +210,8 @@ export default function AppPage() {
     if (voiceState === STATE.SPEAKING) { speech.cancel(); setVoiceState(STATE.IDLE); return; }
     if (voiceState === STATE.THINKING) return;
     if (voiceState === STATE.LISTENING) { stt.stop(); setVoiceState(STATE.IDLE); return; }
-    await requestMicPermission(); unlockAudio();
+    // Permission was pre-requested in handleTapToStart — this is now a fast no-op
+    await requestMicPermission();
     speech.cancel(); setTranscript(''); setError('');
     setVoiceState(STATE.LISTENING); stt.start();
   }, [voiceState, speech, stt]);
