@@ -1,20 +1,18 @@
-const CACHE = 'getfrench-v3';
-const SHELL = [
-  '/app',
-  '/auth',
-  '/manifest.json',
+const CACHE = 'getfrench-kids-v1';
+
+// Pre-cache only static icons (not HTML — HTML must always be fresh)
+const PRECACHE = [
   '/icons/icon-192.png',
   '/icons/icon-512.png',
+  '/manifest.json',
 ];
 
-// Install: pre-cache the app shell
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())
+    caches.open(CACHE).then(c => c.addAll(PRECACHE)).then(() => self.skipWaiting())
   );
 });
 
-// Activate: delete old caches and take control immediately
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
@@ -30,31 +28,34 @@ self.addEventListener('fetch', (e) => {
   if (request.method !== 'GET') return;
   if (url.pathname.startsWith('/api/')) return;
 
-  // Hashed Vite assets: cache-first forever (hash changes when content changes)
+  // Hashed Vite assets (/assets/index-abc123.js): cache-first
+  // Safe because hash changes when content changes → fresh file = new URL = cache miss
   if (url.pathname.startsWith('/assets/')) {
     e.respondWith(
       caches.match(request).then(cached => cached || fetch(request).then(res => {
-        const clone = res.clone();
-        caches.open(CACHE).then(c => c.put(request, clone));
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(request, clone));
+        }
         return res;
       }))
     );
     return;
   }
 
-  // HTML navigation: cache-first, update in background (stale-while-revalidate)
-  // Serves instantly from cache → no white screen on launch
+  // HTML navigation: NETWORK FIRST — always get the latest HTML from server
+  // Falls back to cache only if offline
   if (request.mode === 'navigate') {
     e.respondWith(
-      caches.open(CACHE).then(cache =>
-        cache.match(request).then(cached => {
-          const networkFetch = fetch(request).then(res => {
-            if (res.ok) cache.put(request, res.clone());
-            return res;
-          }).catch(() => null);
-          return cached || networkFetch;
+      fetch(request)
+        .then(res => {
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE).then(c => c.put(request, clone));
+          }
+          return res;
         })
-      )
+        .catch(() => caches.match(request))
     );
     return;
   }
