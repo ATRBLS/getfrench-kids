@@ -3,10 +3,6 @@ import { getToken } from '../lib/auth';
 
 let micPermissionRequested = false;
 
-// Must be called during a user gesture (button tap).
-// On iOS Safari, getUserMedia() primes the mic permission for SpeechRecognition.
-// We hold the stream open for 500ms — releasing immediately can lose the audio
-// session before webkitSpeechRecognition attaches to it.
 export async function requestMicPermission() {
   if (micPermissionRequested) return;
   micPermissionRequested = true;
@@ -18,13 +14,25 @@ export async function requestMicPermission() {
   }
 }
 
-// Unlock Web Speech synthesis on iOS Safari during a user gesture.
-// speechSynthesis shares the audio session with SpeechRecognition on Safari.
 export function unlockAudio() {
   try {
     const u = new SpeechSynthesisUtterance('');
     u.volume = 0;
     window.speechSynthesis.speak(u);
+  } catch {}
+}
+
+// Play a 200ms near-silent buffer through an AudioContext.
+// Needed to "prove" to iOS that audio happened during a user gesture.
+function playUnlockBuffer(ctx) {
+  try {
+    const sampleRate = ctx.sampleRate || 22050;
+    const buf = ctx.createBuffer(1, Math.floor(sampleRate * 0.2), sampleRate);
+    // Leave data as silence (zeros) — audible enough for iOS to register
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
   } catch {}
 }
 
@@ -39,32 +47,17 @@ export function useSpeechRecognition({ onResult, onEnd, onError }) {
       cbRef.current.onError?.('Speech recognition not supported. Try Chrome or Safari.');
       return;
     }
-
     try { recognitionRef.current?.abort(); } catch {}
-
     const rec = new SR();
     rec.lang = 'fr-FR';
     rec.interimResults = false;
     rec.maxAlternatives = 1;
     rec.continuous = false;
-
-    rec.onresult = (e) => {
-      const transcript = e.results[0][0].transcript;
-      cbRef.current.onResult?.(transcript);
-    };
-    rec.onerror = (e) => {
-      if (e.error !== 'aborted') cbRef.current.onError?.(e.error);
-    };
+    rec.onresult = (e) => { cbRef.current.onResult?.(e.results[0][0].transcript); };
+    rec.onerror = (e) => { if (e.error !== 'aborted') cbRef.current.onError?.(e.error); };
     rec.onend = () => cbRef.current.onEnd?.();
-
     recognitionRef.current = rec;
-    try {
-      rec.start();
-      console.log('[STT] recognition.start() called');
-    } catch (err) {
-      console.error('[STT] rec.start() threw:', err.message);
-      cbRef.current.onError?.(err.message);
-    }
+    try { rec.start(); } catch (err) { cbRef.current.onError?.(err.message); }
   }, []);
 
   const stop = useCallback(() => {
@@ -76,30 +69,49 @@ export function useSpeechRecognition({ onResult, onEnd, onError }) {
 }
 
 export function useSpeechSynthesis() {
-  const audioCtxRef    = useRef(null); // persistent AudioContext for the whole session
-  const queueRef       = useRef([]);
-  const playingRef     = useRef(false);
-  const onDoneRef      = useRef(null);
-  const finalizedRef   = useRef(false);
-  const currentRef     = useRef(null); // current AudioBufferSourceNode
-  const genRef         = useRef(0);    // incremented on cancel to invalidate in-flight ops
+  const audioCtxRef  = useRef(null);
+  const queueRef     = useRef([]);
+  const playingRef   = useRef(false);
+  const onDoneRef    = useRef(null);
+  const finalizedRef = useRef(false);
+  const currentRef   = useRef(null);
+  const genRef       = useRef(0);
 
-  // Call during the user gesture that starts the session so iOS grants audio permission.
+  // Call during a user gesture to CREATE a new AudioContext.
+  // Only creates if one doesn't exist yet.
   const createAudioSession = useCallback(() => {
     if (audioCtxRef.current) return;
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      // Play a silent 1-sample buffer to fully unlock the context on iOS.
-      const buf = ctx.createBuffer(1, 1, 22050);
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.connect(ctx.destination);
-      src.start(0);
+      playUnlockBuffer(ctx);
       audioCtxRef.current = ctx;
-      console.log('[TTS] AudioContext created, state:', ctx.state);
     } catch (e) {
       console.warn('[TTS] AudioContext creation failed:', e.message);
     }
+  }, []);
+
+  // Call during a user gesture to UNLOCK audio even if AudioContext already exists.
+  // Handles the case where iOS suspended the context during the async wait.
+  // MUST be called synchronously during a tap/click event.
+  const forceAudioUnlock = useCallback(() => {
+    if (!audioCtxRef.current) {
+      // No context yet — create one fresh
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        playUnlockBuffer(ctx);
+        audioCtxRef.current = ctx;
+      } catch (e) {
+        console.warn('[TTS] AudioContext creation failed:', e.message);
+      }
+      return;
+    }
+    const ctx = audioCtxRef.current;
+    // Resume if suspended — ctx.resume() called during gesture is honored by iOS
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    // Play unlock buffer regardless — this is what actually unlocks iOS audio
+    playUnlockBuffer(ctx);
   }, []);
 
   const closeAudioSession = useCallback(() => {
@@ -125,11 +137,11 @@ export function useSpeechSynthesis() {
       return;
     }
 
-    const text  = queueRef.current.shift();
-    const token = getToken();
-    const base  = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-
+    const text    = queueRef.current.shift();
+    const token   = getToken();
+    const base    = import.meta.env.VITE_API_URL || 'http://localhost:3002';
     const buddyId = localStorage.getItem('getfrench-kids_buddy') || 'rocky';
+
     fetch(`${base}/api/tts`, {
       method: 'POST',
       headers: {
@@ -157,17 +169,11 @@ export function useSpeechSynthesis() {
         source.buffer = audioBuffer;
         source.connect(ctx.destination);
         currentRef.current = source;
-
-        // onended fires inside the AudioContext callback — iOS Safari treats this
-        // as a trusted audio event, so SpeechRecognition.start() works immediately.
         source.onended = () => {
           currentRef.current = null;
           playNext(gen);
         };
 
-        // iOS Safari suspends the AudioContext after the async gap between
-        // createAudioSession() and the first actual audio playback. Resume it
-        // so the first TTS response is audible (not silently dropped).
         if (ctx.state === 'suspended') {
           try { await ctx.resume(); } catch {}
         }
@@ -175,8 +181,7 @@ export function useSpeechSynthesis() {
       })
       .catch((err) => {
         if (gen !== genRef.current || err.message === 'cancelled') return;
-        console.error('[TTS] ElevenLabs failed, skipping sentence:', err.message);
-        // Skip silently rather than switching to Web Speech (avoids jarring voice/accent change)
+        console.error('[TTS] failed, skipping:', err.message);
         playNext(gen);
       });
   }, []);
@@ -211,5 +216,5 @@ export function useSpeechSynthesis() {
     }
   }, []);
 
-  return { enqueueSentence, finalize, cancel, createAudioSession, closeAudioSession };
+  return { enqueueSentence, finalize, cancel, createAudioSession, forceAudioUnlock, closeAudioSession };
 }
