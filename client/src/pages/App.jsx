@@ -192,7 +192,8 @@ export default function AppPage() {
     const now = Date.now();
     sessionStartRef.current = now; setSessionStart(now);
     try { const { session_id } = await api.startSession(); sessionIdRef.current = session_id; setSessionId(session_id); } catch {}
-    await requestMicPermission();
+    // Do NOT request mic here — on iOS the permission dialog interrupts the AudioContext
+    // Mic is requested in handleMicPress() right before the user speaks
     handleUserInput('Bonjour!');
   }, [speech, handleUserInput]);
 
