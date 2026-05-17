@@ -59,6 +59,7 @@ export default function AppPage() {
   const [lang, setLang] = useState(localStorage.getItem('getfrench-kids_lang') || 'en');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState({});
+  const [sessionWaiting, setSessionWaiting] = useState(false);
   const [voiceState, setVoiceState] = useState(STATE.IDLE);
   const [transcript, setTranscript] = useState('');
   const [messages, setMessages] = useState([]);
@@ -192,8 +193,15 @@ export default function AppPage() {
     const now = Date.now();
     sessionStartRef.current = now; setSessionStart(now);
     try { const { session_id } = await api.startSession(); sessionIdRef.current = session_id; setSessionId(session_id); } catch {}
-    // Do NOT request mic here — on iOS the permission dialog interrupts the AudioContext
-    // Mic is requested in handleMicPress() right before the user speaks
+    // Show "tap to hear" button — the tap gesture is required by iOS to unlock audio
+    setSessionWaiting(true);
+  }, [speech, handleUserInput]);
+
+  const handleTapToStart = useCallback(() => {
+    // This tap IS the user gesture iOS needs — unlock audio NOW, then start Rocky
+    speech.createAudioSession();
+    unlockAudio();
+    setSessionWaiting(false);
     handleUserInput('Bonjour!');
   }, [speech, handleUserInput]);
 
@@ -228,7 +236,7 @@ export default function AppPage() {
     setRecap(null); setAppMode('home'); setSelectedStory(null);
     setMessages([]); messagesRef.current = [];
     setSessionStart(null); sessionStartRef.current = null;
-    setElapsed(0); setVoiceState(STATE.IDLE);
+    setElapsed(0); setVoiceState(STATE.IDLE); setSessionWaiting(false);
   }, []);
 
   const handleSaveSettings = useCallback(async () => {
@@ -341,6 +349,19 @@ export default function AppPage() {
             <span className="mode-badge">{appMode === 'story' ? `📖 ${selectedStory?.titleEn}` : `💬 ${selectedBuddy.name}`}</span>
           </div>
           <div className="session-spacer" />
+
+          {/* iOS audio unlock gate — must be a direct user tap */}
+          {sessionWaiting ? (
+            <div className="tap-to-start">
+              <button className="tap-to-start-btn" onClick={handleTapToStart}
+                style={{ background: selectedBuddy.color }}>
+                <span className="tap-to-start-icon">🎙️</span>
+                <span className="tap-to-start-label">Tap to hear {selectedBuddy.name}!</span>
+              </button>
+              <p className="tap-to-start-sub">Get ready to speak French!</p>
+            </div>
+          ) : (
+            <>
           {voiceState === STATE.THINKING && <div className="thinking-dots"><span/><span/><span/></div>}
           {suggestions.length > 0 && voiceState === STATE.IDLE && (
             <div className="suggestions-container">
@@ -369,6 +390,8 @@ export default function AppPage() {
           {error && <div className="app-error">{error}</div>}
           <div className="session-timer">{formatTime(elapsed)}</div>
           <div className="session-spacer" />
+            </>
+          )}
         </div>
       )}
 
