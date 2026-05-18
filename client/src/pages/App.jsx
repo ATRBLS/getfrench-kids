@@ -210,7 +210,10 @@ export default function AppPage() {
     if (voiceState === STATE.SPEAKING) { speech.cancel(); setVoiceState(STATE.IDLE); return; }
     if (voiceState === STATE.THINKING) return;
     if (voiceState === STATE.LISTENING) { stt.stop(); setVoiceState(STATE.IDLE); return; }
-    // Permission was pre-requested in handleTapToStart — this is now a fast no-op
+    // Re-unlock audio SYNC during this user gesture — iOS suspends AudioContext
+    // between sessions or after Rocky finishes speaking
+    speech.forceAudioUnlock();
+    unlockAudio();
     await requestMicPermission();
     speech.cancel(); setTranscript(''); setError('');
     setVoiceState(STATE.LISTENING); stt.start();
